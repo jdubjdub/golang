@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	fmt.Println("short_memory bot v0.3.0")
+	fmt.Println("short_memory bot v0.3.1")
 	lambda.Start(handler)
 }
 
