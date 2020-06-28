@@ -16,10 +16,11 @@ import (
 
 func main() {
 	fmt.Println("short_memory bot v0.3.2")
-	lambda.Start(handler)
+	lambda.Start(ShortMemory)
 }
 
-type lambdaEvent struct{}
+// LambdaEvent stores whatever the AWS Lambda even is
+type LambdaEvent struct{}
 
 // Credentials stores all of our access/consumer tokens
 // and secret keys needed for authentication against
@@ -31,7 +32,8 @@ type Credentials struct {
 	AccessTokenSecret string
 }
 
-func handler(ctx context.Context, e lambdaEvent) error {
+// ShortMemory deletes a user's Tweets more than a month old
+func ShortMemory(ctx context.Context, e LambdaEvent) error {
 	creds := Credentials{
 		AccessToken:       os.Getenv("TWITTER_ACCESS_TOKEN"),
 		AccessTokenSecret: os.Getenv("TWITTER_ACCESS_TOKEN_SECRET"),
@@ -55,8 +57,7 @@ func handler(ctx context.Context, e lambdaEvent) error {
 	// Create authorized user client
 	client, err := getUserClient(&creds)
 	if err != nil {
-		log.Println("Error getUserClient")
-		log.Print(err)
+		log.Println("Error getUserClient:", err)
 		return err
 	}
 
@@ -64,8 +65,7 @@ func handler(ctx context.Context, e lambdaEvent) error {
 	// Find first tweet more than a month old
 	tweet, err := getFirstTweetOlderThan(client, maxAge, 0)
 	if err != nil {
-		log.Println("Error getFirstTweetOlderThan")
-		log.Print(err)
+		log.Println("Error getFirstTweetOlderThan:", err)
 		return err
 	}
 
@@ -73,14 +73,13 @@ func handler(ctx context.Context, e lambdaEvent) error {
 		// Delete all tweets more than a month old
 		err = deleteThisTweetAndOlder(client, tweet)
 		if err != nil {
-			log.Println("Error deleteThisTweetAndOlder")
-			log.Print(err)
+			log.Println("Error deleteThisTweetAndOlder:", err)
 			return err
 		}
 
-		log.Print("Done")
+		log.Println("Done")
 	} else {
-		log.Print("No tweets to delete")
+		log.Println("No tweets to delete")
 	}
 
 	return nil
@@ -103,7 +102,7 @@ func getUserClient(creds *Credentials) (*twitter.Client, error) {
 		return nil, err
 	}
 
-	log.Printf("Logged in as: %s", user.ScreenName)
+	log.Println("Logged in:", user.ScreenName)
 
 	return client, nil
 }
