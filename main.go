@@ -19,7 +19,7 @@ func main() {
 	lambda.Start(ShortMemory)
 }
 
-// LambdaEvent stores whatever the AWS Lambda even is
+// LambdaEvent stores whatever the AWS Lambda event is
 type LambdaEvent struct{}
 
 // Credentials stores all of our access/consumer tokens
