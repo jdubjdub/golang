@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	fmt.Println("short_memory bot v0.1.0")
+	fmt.Println("short_memory bot v0.1.1")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -24,8 +24,6 @@ func main() {
 		ConsumerKey:       os.Getenv("TWITTER_API_KEY"),
 		ConsumerSecret:    os.Getenv("TWITTER_API_SECRET"),
 	}
-
-	fmt.Printf("%+v\n", creds)
 
 	// Login Twitter Client
 	client, err := getUserClient(&creds)
