@@ -40,13 +40,16 @@ func main() {
 		log.Println("Error getHundredthTweet")
 		log.Fatal(err)
 	}
-	log.Printf("TWEET! %v", tweet.Text)
 
-	// delete older tweets
-	err = deleteEverythingOlderThanTweet(client, tweet)
-	if err != nil {
-		log.Println("Error deleteEverythingOlderThanTweet")
-		log.Fatal(err)
+	if tweet != nil {
+		// delete older tweets
+		err = deleteEverythingOlderThanTweet(client, tweet)
+		if err != nil {
+			log.Println("Error deleteEverythingOlderThanTweet")
+			log.Fatal(err)
+		}
+	} else {
+		log.Print("No tweets to delete!")
 	}
 }
 
@@ -104,8 +107,8 @@ func getHundredthTweet(client *twitter.Client) (*twitter.Tweet, error) {
 		return nil, err
 	}
 
-	for i := 0; i < len(tweets); i++ {
-		log.Printf("%+v\n", tweets[i].Text)
+	if len(tweets) < 100 {
+		return nil, nil
 	}
 
 	return &tweets[len(tweets)-1], nil
