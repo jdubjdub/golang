@@ -1,22 +1,31 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
 	// other imports
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	fmt.Println("short_memory bot v0.2.0")
+	fmt.Println("short_memory bot v0.3.0")
+	lambda.Start(handler)
+}
+
+type lambdaEvent struct{}
+
+func handler(ctx context.Context, e lambdaEvent) error {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Print("Could not load .env file")
 	}
 
 	creds := Credentials{
@@ -26,33 +35,50 @@ func main() {
 		ConsumerSecret:    os.Getenv("TWITTER_API_SECRET"),
 	}
 
+	if creds.AccessToken == "" {
+		return errors.New("missing AccessToken")
+	}
+	if creds.AccessTokenSecret == "" {
+		return errors.New("missing AccessTokenSecret")
+	}
+	if creds.ConsumerKey == "" {
+		return errors.New("missing ConsumerKey")
+	}
+	if creds.ConsumerSecret == "" {
+		return errors.New("missing ConsumerSecret")
+	}
+
 	// Login Twitter Client
 	client, err := getUserClient(&creds)
 	if err != nil {
 		log.Println("Error getUserClient")
-		log.Fatal(err)
+		log.Print(err)
+		return err
 	}
 
 	maxAge := time.Now().AddDate(0, -1, 0) // 1 month
 	tweet, err := getFirstTweetOlderThan(client, maxAge, 0)
 	if err != nil {
 		log.Println("Error getFirstTweetOlderThan")
-		log.Fatal(err)
+		log.Print(err)
+		return err
 	}
 
 	if tweet != nil {
+		log.Printf("Tweets to delete...")
 		// delete older tweets
 		err = deleteThisTweetAndOlder(client, tweet)
 		if err != nil {
 			log.Println("Error deleteThisTweetAndOlder")
-			log.Fatal(err)
+			log.Print(err)
+			return err
 		}
 	} else {
 		log.Print("No tweets to delete!")
 	}
 
 	log.Print("Done!")
-	os.Exit(0)
+	return nil
 }
 
 // Credentials stores all of our access/consumer tokens
@@ -108,9 +134,6 @@ func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int6
 	if err != nil {
 		return nil, err
 	}
-	if len(tweets) == 0 {
-		return nil, nil
-	}
 
 	for i := 0; i < len(tweets); i++ {
 		createdAt, err := tweets[i].CreatedAtTime()
@@ -121,6 +144,10 @@ func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int6
 		if createdAt.Before(maxAge) {
 			return &tweets[i], nil
 		}
+	}
+
+	if len(tweets) == 1 {
+		return nil, nil
 	}
 
 	return getFirstTweetOlderThan(client, maxAge, tweets[len(tweets)-1].ID)
