@@ -130,8 +130,8 @@ func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int6
 		}
 	}
 
-	// only found MaxID tweet
-	if len(tweets) == 1 {
+	// only found MaxID tweet (or none)
+	if len(tweets) <= 1 {
 		return nil, nil
 	}
 
