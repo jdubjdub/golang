@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	fmt.Println("short_memory bot v0.3.1")
+	fmt.Println("short_memory bot v0.3.2")
 	lambda.Start(handler)
 }
 
@@ -109,11 +109,10 @@ func getUserClient(creds *Credentials) (*twitter.Client, error) {
 }
 
 func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int64) (*twitter.Tweet, error) {
-	f, t := false, true // todo: wtf fix this
 	tweets, _, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams{
-		ExcludeReplies:  &f,
-		IncludeRetweets: &t,
-		TrimUser:        &t,
+		ExcludeReplies:  twitter.Bool(false),
+		IncludeRetweets: twitter.Bool(true),
+		TrimUser:        twitter.Bool(true),
 		Count:           100,
 		MaxID:           maxID,
 	})
@@ -141,11 +140,10 @@ func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int6
 }
 
 func deleteThisTweetAndOlder(client *twitter.Client, tweet *twitter.Tweet) error {
-	f, t := false, true // todo: wtf fix this
 	tweets, _, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams{
-		ExcludeReplies:  &f,
-		IncludeRetweets: &t,
-		TrimUser:        &t,
+		ExcludeReplies:  twitter.Bool(false),
+		IncludeRetweets: twitter.Bool(true),
+		TrimUser:        twitter.Bool(true),
 		Count:           100,
 		MaxID:           tweet.ID,
 	})
