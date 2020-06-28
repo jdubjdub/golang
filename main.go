@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	// other imports
 	"github.com/dghubble/go-twitter/twitter"
@@ -12,7 +13,7 @@ import (
 )
 
 func main() {
-	fmt.Println("short_memory bot v0.1.1")
+	fmt.Println("short_memory bot v0.2.0")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -32,23 +33,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Find 100th tweet
-	tweet, err := getHundredthTweet(client)
+	maxAge := time.Now().AddDate(0, -1, 0) // 1 month
+	tweet, err := getFirstTweetOlderThan(client, maxAge, 0)
 	if err != nil {
-		log.Println("Error getHundredthTweet")
+		log.Println("Error getFirstTweetOlderThan")
 		log.Fatal(err)
 	}
 
 	if tweet != nil {
 		// delete older tweets
-		err = deleteEverythingOlderThanTweet(client, tweet)
+		err = deleteThisTweetAndOlder(client, tweet)
 		if err != nil {
-			log.Println("Error deleteEverythingOlderThanTweet")
+			log.Println("Error deleteThisTweetAndOlder")
 			log.Fatal(err)
 		}
 	} else {
 		log.Print("No tweets to delete!")
 	}
+
+	log.Print("Done!")
+	os.Exit(0)
 }
 
 // Credentials stores all of our access/consumer tokens
@@ -92,27 +96,37 @@ func tweet(client *twitter.Client, text string) (*twitter.Tweet, error) {
 	return tweet, nil
 }
 
-func getHundredthTweet(client *twitter.Client) (*twitter.Tweet, error) {
+func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int64) (*twitter.Tweet, error) {
 	f, t := false, true // wtf todo: fix this
 	tweets, _, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams{
 		ExcludeReplies:  &f,
 		IncludeRetweets: &t,
 		TrimUser:        &t,
 		Count:           100,
+		MaxID:           maxID,
 	})
-
 	if err != nil {
 		return nil, err
 	}
-
-	if len(tweets) < 100 {
+	if len(tweets) == 0 {
 		return nil, nil
 	}
 
-	return &tweets[len(tweets)-1], nil
+	for i := 0; i < len(tweets); i++ {
+		createdAt, err := tweets[i].CreatedAtTime()
+		if err != nil {
+			return nil, err
+		}
+
+		if createdAt.Before(maxAge) {
+			return &tweets[i], nil
+		}
+	}
+
+	return getFirstTweetOlderThan(client, maxAge, tweets[len(tweets)-1].ID)
 }
 
-func deleteEverythingOlderThanTweet(client *twitter.Client, tweet *twitter.Tweet) error {
+func deleteThisTweetAndOlder(client *twitter.Client, tweet *twitter.Tweet) error {
 	f, t := false, true // wtf todo: fix this
 	tweets, _, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams{
 		ExcludeReplies:  &f,
@@ -132,7 +146,7 @@ func deleteEverythingOlderThanTweet(client *twitter.Client, tweet *twitter.Tweet
 	err = deleteTweets(client, tweets)
 
 	if len(tweets) == 100 {
-		return deleteEverythingOlderThanTweet(client, &tweets[len(tweets)-1])
+		return deleteThisTweetAndOlder(client, &tweets[len(tweets)-1])
 	}
 	return nil
 }
@@ -152,6 +166,6 @@ func deleteTweet(client *twitter.Client, tweet twitter.Tweet) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("DELETED TWEET: %+v\n", destroyed)
+	log.Printf("DELETED (tweeted on %v): \"%+v\"\n", destroyed.CreatedAt, destroyed.Text)
 	return nil
 }
