@@ -66,18 +66,19 @@ func handler(ctx context.Context, e lambdaEvent) error {
 
 	if tweet != nil {
 		log.Printf("Tweets to delete...")
-		// delete older tweets
+
 		err = deleteThisTweetAndOlder(client, tweet)
 		if err != nil {
 			log.Println("Error deleteThisTweetAndOlder")
 			log.Print(err)
 			return err
 		}
+
+		log.Print("Done!")
 	} else {
 		log.Print("No tweets to delete!")
 	}
 
-	log.Print("Done!")
 	return nil
 }
 
@@ -111,15 +112,6 @@ func getUserClient(creds *Credentials) (*twitter.Client, error) {
 	log.Printf("Logged in as: %s", user.ScreenName)
 
 	return client, nil
-}
-
-func tweet(client *twitter.Client, text string) (*twitter.Tweet, error) {
-	tweet, _, err := client.Statuses.Update(text, nil)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("%+v\n", tweet)
-	return tweet, nil
 }
 
 func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int64) (*twitter.Tweet, error) {
