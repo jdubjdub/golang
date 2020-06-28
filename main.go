@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -22,66 +21,6 @@ func main() {
 
 type lambdaEvent struct{}
 
-func handler(ctx context.Context, e lambdaEvent) error {
-	err := godotenv.Load()
-	if err != nil {
-		log.Print("Could not load .env file")
-	}
-
-	creds := Credentials{
-		AccessToken:       os.Getenv("TWITTER_ACCESS_TOKEN"),
-		AccessTokenSecret: os.Getenv("TWITTER_ACCESS_TOKEN_SECRET"),
-		ConsumerKey:       os.Getenv("TWITTER_API_KEY"),
-		ConsumerSecret:    os.Getenv("TWITTER_API_SECRET"),
-	}
-
-	if creds.AccessToken == "" {
-		return errors.New("missing AccessToken")
-	}
-	if creds.AccessTokenSecret == "" {
-		return errors.New("missing AccessTokenSecret")
-	}
-	if creds.ConsumerKey == "" {
-		return errors.New("missing ConsumerKey")
-	}
-	if creds.ConsumerSecret == "" {
-		return errors.New("missing ConsumerSecret")
-	}
-
-	// Login Twitter Client
-	client, err := getUserClient(&creds)
-	if err != nil {
-		log.Println("Error getUserClient")
-		log.Print(err)
-		return err
-	}
-
-	maxAge := time.Now().AddDate(0, -1, 0) // 1 month
-	tweet, err := getFirstTweetOlderThan(client, maxAge, 0)
-	if err != nil {
-		log.Println("Error getFirstTweetOlderThan")
-		log.Print(err)
-		return err
-	}
-
-	if tweet != nil {
-		log.Printf("Tweets to delete...")
-
-		err = deleteThisTweetAndOlder(client, tweet)
-		if err != nil {
-			log.Println("Error deleteThisTweetAndOlder")
-			log.Print(err)
-			return err
-		}
-
-		log.Print("Done!")
-	} else {
-		log.Print("No tweets to delete!")
-	}
-
-	return nil
-}
-
 // Credentials stores all of our access/consumer tokens
 // and secret keys needed for authentication against
 // the twitter REST API.
@@ -90,6 +29,61 @@ type Credentials struct {
 	ConsumerSecret    string
 	AccessToken       string
 	AccessTokenSecret string
+}
+
+func handler(ctx context.Context, e lambdaEvent) error {
+	creds := Credentials{
+		AccessToken:       os.Getenv("TWITTER_ACCESS_TOKEN"),
+		AccessTokenSecret: os.Getenv("TWITTER_ACCESS_TOKEN_SECRET"),
+		ConsumerKey:       os.Getenv("TWITTER_API_KEY"),
+		ConsumerSecret:    os.Getenv("TWITTER_API_SECRET"),
+	}
+
+	if creds.AccessToken == "" {
+		return errors.New("Missing AccessToken")
+	}
+	if creds.AccessTokenSecret == "" {
+		return errors.New("Missing AccessTokenSecret")
+	}
+	if creds.ConsumerKey == "" {
+		return errors.New("Missing ConsumerKey")
+	}
+	if creds.ConsumerSecret == "" {
+		return errors.New("Missing ConsumerSecret")
+	}
+
+	// Create authorized user client
+	client, err := getUserClient(&creds)
+	if err != nil {
+		log.Println("Error getUserClient")
+		log.Print(err)
+		return err
+	}
+
+	maxAge := time.Now().AddDate(0, -1, 0) // 1 month ago
+	// Find first tweet more than a month old
+	tweet, err := getFirstTweetOlderThan(client, maxAge, 0)
+	if err != nil {
+		log.Println("Error getFirstTweetOlderThan")
+		log.Print(err)
+		return err
+	}
+
+	if tweet != nil {
+		// Delete all tweets more than a month old
+		err = deleteThisTweetAndOlder(client, tweet)
+		if err != nil {
+			log.Println("Error deleteThisTweetAndOlder")
+			log.Print(err)
+			return err
+		}
+
+		log.Print("Done")
+	} else {
+		log.Print("No tweets to delete")
+	}
+
+	return nil
 }
 
 func getUserClient(creds *Credentials) (*twitter.Client, error) {
@@ -115,7 +109,7 @@ func getUserClient(creds *Credentials) (*twitter.Client, error) {
 }
 
 func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int64) (*twitter.Tweet, error) {
-	f, t := false, true // wtf todo: fix this
+	f, t := false, true // todo: wtf fix this
 	tweets, _, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams{
 		ExcludeReplies:  &f,
 		IncludeRetweets: &t,
@@ -138,6 +132,7 @@ func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int6
 		}
 	}
 
+	// only found MaxID tweet
 	if len(tweets) == 1 {
 		return nil, nil
 	}
@@ -146,7 +141,7 @@ func getFirstTweetOlderThan(client *twitter.Client, maxAge time.Time, maxID int6
 }
 
 func deleteThisTweetAndOlder(client *twitter.Client, tweet *twitter.Tweet) error {
-	f, t := false, true // wtf todo: fix this
+	f, t := false, true // todo: wtf fix this
 	tweets, _, err := client.Timelines.UserTimeline(&twitter.UserTimelineParams{
 		ExcludeReplies:  &f,
 		IncludeRetweets: &t,
@@ -185,6 +180,6 @@ func deleteTweet(client *twitter.Client, tweet twitter.Tweet) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("DELETED (tweeted on %v): \"%+v\"\n", destroyed.CreatedAt, destroyed.Text)
+	log.Printf("DELETED (%v): \"%v\"\n", destroyed.CreatedAt, destroyed.Text)
 	return nil
 }
